@@ -1,20 +1,45 @@
 {
   "name": "hermes",
   "version": "1.0.0",
+  "description": "A CLI tool for quickly scaffolding Docker and GitLab CI configurations for your projects",
   "main": "main.js",
   "type": "module",
   "bin": {
     "hermes": "./bin/hermes.js"
   },
+  "files": [
+    "dist",
+    "bin",
+    "templates"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
     "start:dev": "npm run build && node dist/main.js"
   },
-  "keywords": [],
+  "keywords": [
+    "cli",
+    "docker",
+    "dockerfile",
+    "docker-compose",
+    "gitlab",
+    "gitlab-ci",
+    "devops",
+    "scaffolding",
+    "nestjs",
+    "nextjs",
+    "microservices"
+  ],
   "author": "",
-  "license": "ISC",
-  "description": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frfhrts/hermes.git"
+  },
+  "bugs": {
+    "url": "https://github.com/frfhrts/hermes/issues"
+  },
+  "homepage": "https://github.com/frfhrts/hermes#readme",
   "devDependencies": {
     "@types/node": "^24.10.1",
     "typescript": "^5.0.0"
