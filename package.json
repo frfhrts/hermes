@@ -1,10 +1,14 @@
 {
   "name": "hermes",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "main.js",
+  "type": "module",
+  "bin": {
+    "hermes": "./bin/hermes.js"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc --outDir dist",
+    "build": "tsc",
     "start:dev": "npm run build && node dist/main.js"
   },
   "keywords": [],
@@ -12,6 +16,7 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
-    "@types/node": "^24.10.1"
+    "@types/node": "^24.10.1",
+    "typescript": "^5.0.0"
   }
 }
