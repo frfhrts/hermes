@@ -1,0 +1,12 @@
+# Simple compose file for development builds, use it for either local builds or test deployments
+services:
+  my-app-dev:
+    container_name: my-app-dev
+    extends:
+      file: compose.base.yml
+      service: my-app-dev
+    build:
+      context: .
+      dockerfile: # Put your Dockerfile Path
+    ports:
+      - 3000:3000

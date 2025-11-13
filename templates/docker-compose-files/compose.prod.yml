@@ -1,0 +1,10 @@
+services:
+  my-app:
+    container_name: my-app-prod
+    image: ${DOCKER_FULLNAME} # Full Docker Image Name
+    extends:
+      file: compose.base.yml
+      service: my-app-prod
+    ports:
+      - 127.0.0.1:${APP_PORT:-3000}:3000 # It is recommended to not have production app exposed publically
+      
