@@ -1,11 +1,11 @@
 #!/bin/bash
 
-echo "Installing Hermes dependencies"
-
+echo "📦 Installing Hermes dependencies..."
 npm install
 
-echo "Linking Hermes globally"
-
+echo "🔗 Building and linking Hermes globally..."
+npm run build
 npm link
 
-echo "Congrats! You can now use Hermes by calling 'hermes' command from anywhere in your terminal"
+echo "✅ Success! You can now run 'hermes' from anywhere in your terminal"
+echo "💡 To uninstall, run: ./uninstall.sh"
