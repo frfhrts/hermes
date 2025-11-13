@@ -1,0 +1,242 @@
+default:
+  image: ${DOCKER_IMAGE_DOCKER}
+  tags:
+  # Add tags Based on your runners, all runner tags should match to pick a job
+    - os/linux
+    - dind
+
+  services:
+    - name: ${DOCKER_IMAGE_DOCKER_ROOTLESS}
+      alias: docker
+
+.with-postgres:
+  services:
+    - name: ${DOCKER_IMAGE_POSTGRES}
+      alias: ${POSTGRES_HOST},db,postgres,pg
+      entrypoint: ["docker-entrypoint.sh"]
+      command: ["postgres"]
+
+variables:
+  DOCKER_TLS_CERTDIR: "/certs"
+  RELEASE_PATTERN: /^v\d+\.\d+\.\d+$/
+  RELEASE_PATTERN_BASH: '^v[0-9]+\.[0-9]+\.[0-9]+$'
+  POSTGRES_HOST: $POSTGRES_HOST
+  POSTGRES_DB: $POSTGRES_DB
+  POSTGRES_USER: $POSTGRES_USER
+  POSTGRES_PASSWORD: $POSTGRES_PASS
+  POSTGRES_HOST_AUTH_METHOD: trust
+  PGDATA: "/var/lib/postgresql/data"
+  POSTGRES_INITDB_ARGS: "--encoding=UTF8 --data-checksums"
+  DOCKER_IMAGE_NODE: docker.io/node:20-bullseye-slim
+  DOCKER_IMAGE_POSTGRES: docker.io/postgres:16.6-alpine
+  DOCKER_IMAGE_DOCKER: docker.io/docker:27
+  DOCKER_IMAGE_DOCKER_ROOTLESS: docker.io/docker:27-dind-rootless
+  GITLAB_RELEASE_DOCKER_IMAGE: gitlab/glab:latest
+
+stages:
+  - build
+  - install
+  - test
+  - test-integration
+  - sign
+  - verify
+  - retag
+  - release
+  - deploy
+
+include:
+  # - template: Security/Secret-Detection.gitlab-ci.yml enable if you want secret detection service, runs on test stage, no setup needed, enable job below too
+  # - template: Jobs/Container-Scanning.gitlab-ci.yml enable if you want docker container scanning
+  # - template: Cosign.gitlab-ci.yml enable for docker cosign, you need to configure PKI to use this
+  # - local: apps/main/.gitlab-ci.yml In case of microservices add local gitlab-ci imports like this
+
+.default-rules:
+  rules:
+    - if: '$RENOVATE == "1"'
+      when: never
+    - if: '$DOCKER_IMAGE_SCAN == "1"'
+      when: never
+    - if: "$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH"
+      when: always
+    - if: "$CI_COMMIT_TAG =~ $RELEASE_PATTERN"
+      when: always
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: "$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS"
+      when: never
+    - if: $CI_COMMIT_BRANCH
+
+  release-rules:
+    - if: '$CI_COMMIT_TAG =~ $RELEASE_PATTERN'
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+      when: never
+    - if: $CI_PIPELINE_SOURCE == "manual"
+      when: never
+
+# For nodejs installs npm packages and saves as artifacts to use on different stages 
+# to use artifacts add artifacts: true in needs section of job
+# npm-install-root:
+# image:
+#   name: ${DOCKER_IMAGE_NODE}
+# stage: install
+# before_script:
+#   - node --version
+#   - npm --version
+# script:
+#   - npm ci
+# artifacts:
+#   paths:
+#     - node_modules
+#   expire_in: 1 week
+# rules:
+#   - !reference [.default-rules, rules]
+# needs: []
+
+# Enable this job for secret detection
+# secret_detection:
+#   variables:
+#     SECRET_DETECTION_HISTORIC_SCAN: "true"
+#   rules:
+#     - !reference [.default-rules, rules]
+
+# container_scanning:
+#   variables:
+#     GIT_STRATEGY: fetch
+#     SECURE_LOG_LEVEL: debug
+#   rules:
+#     - when: never
+
+# Cosign Job Template
+# .cosign:template:
+#   variables:
+#     COSIGN_YES: 'true'
+#   id_tokens:
+#     SIGSTORE_ID_TOKEN:
+#       aud: sigstore
+#   before_script:
+#     - echo "$COSIGN_PRIVATE_KEY" > cosign.key
+#     - apk add --update cosign
+#     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+#   rules:
+#     - if: $CI_PIPELINE_SOURCE == "schedule"
+#       when: never
+#     - if: $CI_PIPELINE_SOURCE != "schedule"
+# when: always
+
+# Main docker build/push template
+.package-docker-job:template:
+  stage: build
+  before_script:
+    - docker info
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - export DOCKER_FULLNAME=${CI_REGISTRY_IMAGE}/${DOCKER_PROJECT}/${DOCKER_IMAGENAME}:${DOCKER_TAG}
+    - docker pull ${DOCKER_FULLNAME} || true
+    - >
+      docker build
+      --pull
+      --no-cache
+      --tag ${DOCKER_FULLNAME}
+      --build-arg GIT_COMMIT_BRANCH=${CI_COMMIT_BRANCH}
+      --build-arg GIT_COMMIT_SHA=${CI_COMMIT_REF_SLUG}
+      --build-arg GIT_COMMIT_TIMESTAMP=${CI_COMMIT_TIMESTAMP}
+      --build-arg APP_VERSION=${APP_VERSION}
+      --build-arg IMAGE=$IMAGE
+      -f ${DOCKERFILE_PATH}/Dockerfile .
+    - docker push ${DOCKER_FULLNAME}
+  rules:
+    - !reference [.default-rules, rules]
+
+
+# Retag image template, use on app service gitlab-ci level, rewrite variables
+# .retag-docker-image:template:
+#   stage: retag
+#   variables:
+#     SOURCE_IMAGE: "${CI_REGISTRY_IMAGE}/${DOCKER_PROJECT}/${DOCKER_IMAGENAME}:old-tag"
+#     NEW_IMAGE: "${CI_REGISTRY_IMAGE}/${DOCKER_PROJECT}/${DOCKER_IMAGENAME}:new-tag"
+#     MODULE_NAME: "unknown"
+#   before_script:
+#     - docker info
+#     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+#     - |
+#       if [[ "$CI_COMMIT_TAG" =~ $RELEASE_PATTERN_BASH ]]; then
+#         NEW_IMAGE="${CI_REGISTRY_IMAGE}/release/${MODULE_NAME}:${CI_COMMIT_TAG}"
+#       elif [[ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]]; then
+#         NEW_IMAGE="${CI_REGISTRY_IMAGE}/main/${MODULE_NAME}:latest"
+#       elif [[ -n "$CI_MERGE_REQUEST_IID" ]]; then
+#         NEW_IMAGE="${CI_REGISTRY_IMAGE}/features/${MODULE_NAME}:mr-$CI_MERGE_REQUEST_IID"
+#       elif [[ -n "$CI_COMMIT_BRANCH" ]]; then
+#         NEW_IMAGE="${CI_REGISTRY_IMAGE}/features/${MODULE_NAME}:$CI_COMMIT_REF_SLUG"
+#       fi
+#   script:
+#     - echo $SOURCE_IMAGE
+#     - echo $NEW_IMAGE
+#     - docker pull $SOURCE_IMAGE
+#     - docker tag $SOURCE_IMAGE $NEW_IMAGE
+#     - docker push $NEW_IMAGE
+#   needs:
+#       optional: true
+
+# Release jobs execute manually, generates docker image with version tag and creates changelogs as artifacts
+# you need to have auto-changelog installed as devDependencies
+# put .auto-changelog file in project root with this config
+# =========================================
+# {
+#   "output": "CHANGELOG.md",
+#   "unreleased": true,
+#   "template": "keepachangelog",
+#   "commitLimit": false
+# }
+# ========================================
+# prepare_release:
+#   stage: release
+#   image: $DOCKER_IMAGE_NODE
+#   script:
+#     - npx auto-changelog --starting-version $CI_COMMIT_TAG --ending-version $CI_COMMIT_TAG
+#     - mv CHANGELOG.md release_notes.md
+#   artifacts:
+#     paths:
+#       - release_notes.md
+#   rules:
+#     - !reference [.default-rules, release-rules]
+#   needs:
+#     - job: npm-install-root
+#       artifacts: true
+
+# To generate releases you need to generate GLAB_AUTH_TOKEN and set it as variable in pipeline
+# release:
+# stage: release
+# image: ${GITLAB_RELEASE_DOCKER_IMAGE}
+# before_script:
+#   - apk add --no-cache curl jq
+# script:
+#   - echo "Creating release"
+#   - glab auth login -h gitlab.com -t "${GLAB_AUTH_TOKEN}"
+#   - |
+#     # Fetch milestones from the GitLab API
+#     MILESTONE_RESPONSE=$(curl --header "PRIVATE-TOKEN: ${GLAB_AUTH_TOKEN}" "https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/milestones?search=$CI_COMMIT_TAG")
+
+#     # Check if the milestone exists
+#     if echo "$MILESTONE_RESPONSE" | jq -e '. | length > 0' > /dev/null; then
+#       MILESTONE_ARG="--milestone $CI_COMMIT_TAG"
+#     else
+#       MILESTONE_ARG=""
+#     fi
+#   - |
+#     glab release create "$CI_COMMIT_TAG" \
+#     --name "Release $CI_COMMIT_TAG" \
+#     --ref $CI_COMMIT_REF_SLUG \
+#     --notes-file release_notes.md \
+#     $MILESTONE_ARG \
+#     --assets-links "[{
+#       \"link_type\": \"image\"
+#     },
+#     {
+#       \"name\": \"Docker Image generator_pdf-module\",
+#       \"url\": \"https://$CI_REGISTRY_IMAGE/release/generator_pdf-module:$CI_COMMIT_TAG\",
+#       \"link_type\": \"image\"
+#     }]"
+# rules:
+#   - !reference [.default-rules, release-rules]
+# needs:
+#   - job: prepare_release
+#     artifacts: true

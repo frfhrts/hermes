@@ -1,0 +1,47 @@
+variables:
+  PROD_DOCKER_PROJECT: prod
+  PROD_DOCKER_IMAGENAME: prod-docker
+  DOCKERFILE_PATH: apps/main
+
+push-prod-back:
+  extends: .package-docker-job:template
+  variables:
+    DOCKER_PROJECT: ${PROD_DOCKER_PROJECT}
+    DOCKER_IMAGENAME: ${PROD_DOCKER_IMAGENAME}
+    DOCKER_TAG: ${CI_COMMIT_SHA}
+    DOCKERFILE_PATH: ${DOCKERFILE_PATH}
+    APP_VERSION: ${CI_COMMIT_BRANCH}
+  after_script:
+    - echo $CI_PROJECT_PATH
+    - echo GITLAB DOCKET IMAGE WILL BE ${CI_REGISTRY}/${CI_PROJECT_PATH}:${CI_COMMIT_TAG}
+    - echo Docker Full Name ${CI_REGISTRY_IMAGE}/${DOCKER_PROJECT}/${DOCKER_IMAGENAME}:${DOCKER_TAG}
+  rules:
+    - if: $CI_COMMIT_BRANCH == "prod"
+
+prod-deployment:
+  stage: deploy
+  environment:
+    name: prod
+  before_script:
+    - docker info
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - echo "Prod job executed"
+    - export DOCKER_FULLNAME=${CI_REGISTRY_IMAGE}/${PROD_DOCKER_PROJECT}/${PROD_DOCKER_IMAGENAME}:${CI_COMMIT_SHA}
+    - docker compose -f compose.prod.yml pull
+    - docker compose -f compose.prod.yml up -d --force-recreate
+  rules:
+    - if: $CI_COMMIT_BRANCH == "prod"
+
+# This is DEVELOPMENT DEPLOYMENT using docker-compose and local Dockerfile build for quick deploy
+deploy-docker-compose:
+  stage: deploy
+  before_script:
+    - docker info
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - docker compose -f compose.dev.yml down
+    - docker compose -f compose.dev.yml pull
+    - docker compose -f compose.dev.yml up -d --build
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
