@@ -75,7 +75,7 @@ function handleDockerfilesChoice(): void {
       } catch (error) {
         showError(`Failed to copy Dockerfile: ${error}`);
       } finally {
-        rl.close();
+        showMenu();
       }
     },
   );
@@ -125,7 +125,7 @@ function handleDockerComposeFilesChoice(): void {
       } catch (error) {
         showError(`Failed to copy Docker Compose file: ${error}`);
       } finally {
-        rl.close();
+        showMenu();
       }
     },
   );
@@ -141,7 +141,7 @@ function handleGitlabFilesChoice(): void {
         showError(
           `Invalid choice '${projectTypeAnswer}'. Please choose 1-${projectTypes.length}`,
         );
-        rl.close();
+        showMenu();
         return;
       }
 
@@ -188,7 +188,7 @@ function handleMonolithGitlab(): void {
   } catch (error) {
     showError(`Failed to create GitLab CI file: ${error}`);
   } finally {
-    rl.close();
+    showMenu();
   }
 }
 
@@ -202,7 +202,7 @@ function handleMicroservicesGitlab(): void {
         showError(
           `Invalid choice '${answer}'. Please choose 1-${gitlabOptionsList.length}`,
         );
-        rl.close();
+        showMenu();
         return;
       }
 
@@ -244,29 +244,30 @@ function handleMicroservicesGitlab(): void {
       } catch (error) {
         showError(`Failed to create GitLab CI file: ${error}`);
       } finally {
-        rl.close();
+        showMenu();
       }
     },
   );
 }
 
-function main(): void {
-  showBanner();
-
+function showMenu(): void {
   const serviceAnswersOptions = ["Dockerfile", "Docker Compose", "GitLab CI"];
-  const serviceAnswersOptionsListString = getListAsString(
-    serviceAnswersOptions,
-  );
+  const serviceAnswersOptionsListString = getListAsString(serviceAnswersOptions);
+  const exitOption = `   ${colors.cyan}0.${colors.reset} Exit`;
+  const optionsWithExit = `${serviceAnswersOptionsListString}\n${exitOption}`;
 
   rl.question(
-    constructQuestion(
-      "What would you like to create?",
-      serviceAnswersOptionsListString,
-    ),
+    constructQuestion("What would you like to create?", optionsWithExit),
     (answer: string) => {
+      if (answer === "0") {
+        console.log(`\n${colors.yellow}Goodbye!${colors.reset}\n`);
+        rl.close();
+        return;
+      }
+
       if (!validateChoice(answer, serviceAnswersOptions.length)) {
         showError(
-          `Invalid choice '${answer}'. Please choose 1-${serviceAnswersOptions.length}`,
+          `Invalid choice '${answer}'. Please choose 0-${serviceAnswersOptions.length}`,
         );
         return;
       }
@@ -281,11 +282,14 @@ function main(): void {
         case "3":
           handleGitlabFilesChoice();
           break;
-        default:
-          showError(`Provided choice '${answer}' is incorrect`);
       }
     },
   );
+}
+
+function main(): void {
+  showBanner();
+  showMenu();
 }
 
 main();
