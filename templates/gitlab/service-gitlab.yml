@@ -9,7 +9,7 @@ push-prod-back:
     DOCKER_PROJECT: ${PROD_DOCKER_PROJECT}
     DOCKER_IMAGENAME: ${PROD_DOCKER_IMAGENAME}
     DOCKER_TAG: ${CI_COMMIT_SHA}
-    DOCKERFILE_PATH: ${DOCKERFILE_PATH}
+    DOCKERFILE_PATH: ${DOCKERFILE_PATH} # in case of monolith change it to "."
     APP_VERSION: ${CI_COMMIT_BRANCH}
   after_script:
     - echo $CI_PROJECT_PATH

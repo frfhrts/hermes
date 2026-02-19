@@ -21,7 +21,12 @@ const basePath = join(__dirname, "..", "templates");
 
 const projectTypes = ["Monolith", "Microservices"];
 
-const dockerfileList = ["NestJS", "NestJS Microservices", "NextJS"];
+const dockerfileList = [
+  "NestJS",
+  "NestJS Microservices",
+  "NextJS",
+  "NextJS With Prisma",
+];
 const dockerComposeList = ["base", "dev", "prod"];
 const gitlabOptionsList = ["root", "service"];
 
@@ -42,7 +47,7 @@ function handleDockerfilesChoice(): void {
     (answer: string) => {
       if (!validateChoice(answer, dockerfileList.length)) {
         showError(
-          `Invalid choice '${answer}'. Please choose 1-${dockerfileList.length}`
+          `Invalid choice '${answer}'. Please choose 1-${dockerfileList.length}`,
         );
         return;
       }
@@ -64,7 +69,7 @@ function handleDockerfilesChoice(): void {
         showSuccess(
           `Dockerfile created successfully! (${
             dockerfileList[parseInt(answer) - 1]
-          })`
+          })`,
         );
         console.log(`${colors.blue}📁 Location:${colors.reset} ${destPath}\n`);
       } catch (error) {
@@ -72,7 +77,7 @@ function handleDockerfilesChoice(): void {
       } finally {
         rl.close();
       }
-    }
+    },
   );
 }
 
@@ -82,19 +87,19 @@ function handleDockerComposeFilesChoice(): void {
   rl.question(
     constructQuestion(
       "Choose Which Docker Compose File You Need",
-      dockerComposeFilesListString
+      dockerComposeFilesListString,
     ),
     (answer: string) => {
       if (!validateChoice(answer, dockerComposeList.length)) {
         showError(
-          `Invalid choice '${answer}'. Please choose 1-${dockerComposeList.length}`
+          `Invalid choice '${answer}'. Please choose 1-${dockerComposeList.length}`,
         );
         return;
       }
 
       try {
         const dockerComposeFilePaths = fs.readdirSync(
-          dockerComposeFilesTemplatesPath
+          dockerComposeFilesTemplatesPath,
         );
         const dockerComposeName = dockerComposeFilePaths[parseInt(answer) - 1];
 
@@ -105,7 +110,7 @@ function handleDockerComposeFilesChoice(): void {
 
         const sourcePath = join(
           dockerComposeFilesTemplatesPath,
-          dockerComposeName
+          dockerComposeName,
         );
         const destPath = join(process.cwd(), dockerComposeName);
 
@@ -114,7 +119,7 @@ function handleDockerComposeFilesChoice(): void {
         showSuccess(
           `Docker Compose file created successfully! (${
             dockerComposeList[parseInt(answer) - 1]
-          })`
+          })`,
         );
         console.log(`${colors.blue}📁 Location:${colors.reset} ${destPath}\n`);
       } catch (error) {
@@ -122,7 +127,7 @@ function handleDockerComposeFilesChoice(): void {
       } finally {
         rl.close();
       }
-    }
+    },
   );
 }
 
@@ -134,7 +139,7 @@ function handleGitlabFilesChoice(): void {
     (projectTypeAnswer: string) => {
       if (!validateChoice(projectTypeAnswer, projectTypes.length)) {
         showError(
-          `Invalid choice '${projectTypeAnswer}'. Please choose 1-${projectTypes.length}`
+          `Invalid choice '${projectTypeAnswer}'. Please choose 1-${projectTypes.length}`,
         );
         rl.close();
         return;
@@ -147,7 +152,7 @@ function handleGitlabFilesChoice(): void {
       } else if (projectType === "Microservices") {
         handleMicroservicesGitlab();
       }
-    }
+    },
   );
 }
 
@@ -156,7 +161,7 @@ function handleMonolithGitlab(): void {
     const rootGitlabPath = join(gitlabFilesTemplatesPath, "root-gitlab.yml");
     const serviceGitlabPath = join(
       gitlabFilesTemplatesPath,
-      "service-gitlab.yml"
+      "service-gitlab.yml",
     );
     const destPath = join(process.cwd(), ".gitlab-ci.yml");
 
@@ -164,20 +169,20 @@ function handleMonolithGitlab(): void {
     try {
       execSync(
         `yq eval-all '. as $item ireduce ({}; . * $item)' "${rootGitlabPath}" "${serviceGitlabPath}" > "${destPath}"`,
-        { stdio: "inherit" }
+        { stdio: "inherit" },
       );
 
       showSuccess("GitLab CI configuration created successfully! (Monolith)");
       console.log(`${colors.blue}📁 Location:${colors.reset} ${destPath}\n`);
       console.log(
-        `${colors.yellow}ℹ️  Note:${colors.reset} Combined root and service configurations\n`
+        `${colors.yellow}ℹ️  Note:${colors.reset} Combined root and service configurations\n`,
       );
     } catch (error) {
       showError(
-        "Failed to merge files. Make sure 'yq' is installed (https://github.com/mikefarah/yq)"
+        "Failed to merge files. Make sure 'yq' is installed (https://github.com/mikefarah/yq)",
       );
       console.log(
-        `${colors.yellow}💡 Install yq:${colors.reset} brew install yq (macOS) or snap install yq (Linux)\n`
+        `${colors.yellow}💡 Install yq:${colors.reset} brew install yq (macOS) or snap install yq (Linux)\n`,
       );
     }
   } catch (error) {
@@ -191,14 +196,11 @@ function handleMicroservicesGitlab(): void {
   const gitlabOptionsListString = getListAsString(gitlabOptionsList);
 
   rl.question(
-    constructQuestion(
-      "What do you want to create?",
-      gitlabOptionsListString
-    ),
+    constructQuestion("What do you want to create?", gitlabOptionsListString),
     (answer: string) => {
       if (!validateChoice(answer, gitlabOptionsList.length)) {
         showError(
-          `Invalid choice '${answer}'. Please choose 1-${gitlabOptionsList.length}`
+          `Invalid choice '${answer}'. Please choose 1-${gitlabOptionsList.length}`,
         );
         rl.close();
         return;
@@ -232,11 +234,11 @@ function handleMicroservicesGitlab(): void {
               `   1. Create service .gitlab-ci.yml files in each microservice folder\n` +
               `   2. Include them in this root file using:\n` +
               `      include:\n` +
-              `        - local: '/path/to/service/.gitlab-ci.yml'\n`
+              `        - local: '/path/to/service/.gitlab-ci.yml'\n`,
           );
         } else {
           console.log(
-            `${colors.yellow}💡 Remember:${colors.reset} Include this file in your root .gitlab-ci.yml\n`
+            `${colors.yellow}💡 Remember:${colors.reset} Include this file in your root .gitlab-ci.yml\n`,
           );
         }
       } catch (error) {
@@ -244,7 +246,7 @@ function handleMicroservicesGitlab(): void {
       } finally {
         rl.close();
       }
-    }
+    },
   );
 }
 
@@ -253,18 +255,18 @@ function main(): void {
 
   const serviceAnswersOptions = ["Dockerfile", "Docker Compose", "GitLab CI"];
   const serviceAnswersOptionsListString = getListAsString(
-    serviceAnswersOptions
+    serviceAnswersOptions,
   );
 
   rl.question(
     constructQuestion(
       "What would you like to create?",
-      serviceAnswersOptionsListString
+      serviceAnswersOptionsListString,
     ),
     (answer: string) => {
       if (!validateChoice(answer, serviceAnswersOptions.length)) {
         showError(
-          `Invalid choice '${answer}'. Please choose 1-${serviceAnswersOptions.length}`
+          `Invalid choice '${answer}'. Please choose 1-${serviceAnswersOptions.length}`,
         );
         return;
       }
@@ -282,7 +284,7 @@ function main(): void {
         default:
           showError(`Provided choice '${answer}' is incorrect`);
       }
-    }
+    },
   );
 }
 

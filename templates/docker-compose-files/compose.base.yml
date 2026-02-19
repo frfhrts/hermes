@@ -1,7 +1,7 @@
 services:
   my-app:
     container_name: my-app
-    restart: unless_stopped
+    restart: unless-stopped
     environment:
       # Add variables for your app or remove ones you do not need
       # PosrgreSQL Database Variables
